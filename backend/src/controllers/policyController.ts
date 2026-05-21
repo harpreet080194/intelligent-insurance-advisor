@@ -143,6 +143,65 @@ export class PolicyController {
       next(error);
     }
   }
+
+  async getAvailablePolicies(req: any, res: any, next: any) {
+    try {
+      const type = req.query?.type;
+      const minPrice = req.query?.minPrice;
+      const maxPrice = req.query?.maxPrice;
+
+      const filters: any = {};
+      if (type) filters.type = type;
+      if (minPrice) filters.minPrice = parseFloat(String(minPrice));
+      if (maxPrice) filters.maxPrice = parseFloat(String(maxPrice));
+
+      const policies = await policyService.getAvailablePolicies(filters);
+
+      res.json({
+        success: true,
+        count: policies.length,
+        data: policies,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getAvailablePolicyById(req: any, res: any, next: any) {
+    try {
+      const policyTemplateId = req.params?.policyTemplateId;
+      const policy = await policyService.getAvailablePolicyById(policyTemplateId);
+
+      res.json({
+        success: true,
+        data: policy,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async purchasePolicy(req: any, res: any, next: any) {
+    try {
+      const userId = req.user.userId;
+      const policyTemplateId = req.body?.policyTemplateId;
+      const paymentDetails = req.body?.paymentDetails || {};
+
+      if (!policyTemplateId) {
+        throw new Error('Policy template ID is required');
+      }
+
+      const result = await policyService.purchasePolicy(userId, policyTemplateId, paymentDetails);
+
+      res.status(201).json({
+        success: true,
+        message: 'Policy purchased successfully',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const policyController = new PolicyController();

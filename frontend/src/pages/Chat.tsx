@@ -110,15 +110,15 @@ const Chat = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-12rem)] flex flex-col">
-      <div className="mb-4">
+    <div className="flex flex-col" style={{ height: 'calc(100vh - 16rem)' }}>
+      <div className="mb-4 flex-shrink-0">
         <h1 className="text-3xl font-bold text-gray-900">AI Chat Support</h1>
         <p className="text-gray-600 mt-2">Ask me anything about your insurance</p>
       </div>
 
-      <div className="card flex-1 flex flex-col">
+      <div className="card flex-1 flex flex-col min-h-0">
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto space-y-4 mb-4">
+        <div className="flex-1 overflow-y-auto space-y-4 mb-4 px-1">
           {messages.map((message) => (
             <div
               key={message.messageId}

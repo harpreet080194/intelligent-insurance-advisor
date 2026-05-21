@@ -138,6 +138,22 @@ class ApiService {
     return response.data;
   }
 
+  // Available policies (marketplace)
+  async getAvailablePolicies(params?: any) {
+    const response = await this.api.get('/policies/available', { params });
+    return response.data;
+  }
+
+  async getAvailablePolicyById(policyTemplateId: string) {
+    const response = await this.api.get(`/policies/available/${policyTemplateId}`);
+    return response.data;
+  }
+
+  async purchasePolicy(data: any) {
+    const response = await this.api.post('/policies/purchase', data);
+    return response.data;
+  }
+
   // Claim endpoints
   async getClaims(params?: any) {
     const response = await this.api.get('/claims', { params });

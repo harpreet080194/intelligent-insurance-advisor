@@ -376,6 +376,172 @@ export class PolicyService {
 
     return Math.round(basePremium);
   }
+
+  async getAvailablePolicies(filters?: { type?: string; minPrice?: number; maxPrice?: number }) {
+    try {
+      let query = db('available_policies').where({ is_active: true });
+
+      if (filters?.type) {
+        query = query.where({ type: filters.type });
+      }
+
+      if (filters?.minPrice) {
+        query = query.where('base_premium', '>=', filters.minPrice);
+      }
+
+      if (filters?.maxPrice) {
+        query = query.where('base_premium', '<=', filters.maxPrice);
+      }
+
+      const policies = await query.orderBy('popularity_score', 'desc');
+
+      return policies.map((policy: any) => ({
+        policyTemplateId: policy.policy_template_id,
+        name: policy.name,
+        type: policy.type,
+        description: policy.description,
+        basePremium: Number(policy.base_premium),
+        coverageDetails: this.parseCoverage(policy.coverage_details),
+        features: this.parseCoverage(policy.features),
+        eligibilityCriteria: this.parseCoverage(policy.eligibility_criteria),
+        minAge: policy.min_age,
+        maxAge: policy.max_age,
+        minSumInsured: Number(policy.min_sum_insured),
+        maxSumInsured: Number(policy.max_sum_insured),
+        policyTermYears: policy.policy_term_years,
+        providerName: policy.provider_name,
+        popularityScore: policy.popularity_score,
+      }));
+    } catch (error) {
+      console.error('Error fetching available policies:', error);
+      throw error;
+    }
+  }
+
+  async getAvailablePolicyById(policyTemplateId: string) {
+    try {
+      const policy = await db('available_policies')
+        .where({ policy_template_id: policyTemplateId, is_active: true })
+        .first();
+
+      if (!policy) {
+        throw new PolicyServiceError('Policy template not found', 404);
+      }
+
+      return {
+        policyTemplateId: policy.policy_template_id,
+        name: policy.name,
+        type: policy.type,
+        description: policy.description,
+        basePremium: Number(policy.base_premium),
+        coverageDetails: this.parseCoverage(policy.coverage_details),
+        features: this.parseCoverage(policy.features),
+        eligibilityCriteria: this.parseCoverage(policy.eligibility_criteria),
+        minAge: policy.min_age,
+        maxAge: policy.max_age,
+        minSumInsured: Number(policy.min_sum_insured),
+        maxSumInsured: Number(policy.max_sum_insured),
+        policyTermYears: policy.policy_term_years,
+        providerName: policy.provider_name,
+        popularityScore: policy.popularity_score,
+      };
+    } catch (error) {
+      console.error('Error fetching available policy:', error);
+      throw error;
+    }
+  }
+
+  async purchasePolicy(userId: string, policyTemplateId: string, paymentDetails: any) {
+    try {
+      // Get the policy template
+      const template = await this.getAvailablePolicyById(policyTemplateId);
+
+      // Validate user eligibility
+      const user = await db('users').where({ user_id: userId }).first();
+      if (!user) {
+        throw new PolicyServiceError('User not found', 404);
+      }
+
+      const profile = JSON.parse(user.profile || '{}');
+      const userAge = profile.age || 30;
+
+      if (template.minAge && userAge < template.minAge) {
+        throw new PolicyServiceError(`Minimum age requirement is ${template.minAge} years`, 400);
+      }
+
+      if (template.maxAge && userAge > template.maxAge) {
+        throw new PolicyServiceError(`Maximum age limit is ${template.maxAge} years`, 400);
+      }
+
+      // Create the policy
+      const policyNumber = this.generatePolicyNumber(template.type);
+      const policyId = uuidv4();
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setFullYear(endDate.getFullYear() + (template.policyTermYears || 1));
+
+      // Add policy name and provider to coverage details
+      const enrichedCoverage = {
+        ...template.coverageDetails,
+        policyName: template.name,
+        providerName: template.providerName,
+        policyTemplateId: policyTemplateId,
+      };
+
+      await db('policies').insert({
+        policy_id: policyId,
+        user_id: userId,
+        policy_number: policyNumber,
+        type: template.type,
+        status: 'ACTIVE',
+        premium: template.basePremium,
+        coverage: JSON.stringify(enrichedCoverage),
+        provider_id: uuidv4(),
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0],
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+
+      // Create payment record
+      const paymentId = uuidv4();
+      const transactionRef = `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      await db('payments').insert({
+        payment_id: paymentId,
+        user_id: userId,
+        policy_id: policyId,
+        transaction_ref: transactionRef,
+        amount: template.basePremium,
+        currency: 'INR',
+        payment_method: paymentDetails.method || 'CARD',
+        status: 'COMPLETED',
+        description: `Policy purchase: ${template.name}`,
+        created_at: new Date(),
+      });
+
+      // Update popularity score
+      await db('available_policies')
+        .where({ policy_template_id: policyTemplateId })
+        .increment('popularity_score', 1);
+
+      const policy = await db('policies').where({ policy_id: policyId }).first();
+
+      console.log(`Policy purchased: ${policyId} by user ${userId}`);
+
+      return {
+        policy: this.mapPolicy(policy, true),
+        payment: {
+          paymentId,
+          amount: template.basePremium,
+          status: 'COMPLETED',
+          transactionRef: transactionRef,
+        },
+      };
+    } catch (error) {
+      console.error('Error purchasing policy:', error);
+      throw error;
+    }
+  }
 }
 
 export const policyService = new PolicyService();
