@@ -35,7 +35,7 @@ cd "Intelligent Insurance Advisor"
 ```bash
 cd backend
 npm install
-cp .env.example .env
+copy .env.example .env
 # Edit .env if needed (default settings work fine)
 npm run migrate
 node seed-policies.js
@@ -47,14 +47,16 @@ Backend runs on: http://localhost:5000
 ```bash
 cd frontend
 npm install
+copy .env.example .env
+# Edit .env if needed (default settings work fine)
 npm run dev
 ```
 Frontend runs on: http://localhost:5173
 
 ### Default Login
 
-- **Email:** john.doe@example.com
-- **Password:** password123
+- **Email:** demo.user@insuranceadvisor.local
+- **Password:** DemoUser@123
 
 ## Configuration
 

@@ -309,12 +309,10 @@ You have access to the user's policy and claim information when needed.`;
 
       return completion?.choices?.[0]?.message?.content || 'I apologize, but I could not generate a response.';
     } catch (error: any) {
-      // If quota exceeded or other API error, fall back to mock response
-      if (error?.status === 429 || error?.message?.includes('quota')) {
-        console.warn('OpenAI quota exceeded, using mock response. Set USE_MOCK_AI=true in .env to avoid API calls.');
-        return this.generateMockResponse(message, userContext);
-      }
-      throw error;
+      // Always fall back to mock response on any error (quota, missing package, network issues, etc.)
+      console.warn('OpenAI API error, using mock response:', error?.message || 'Unknown error');
+      console.warn('Set USE_MOCK_AI=true in .env to avoid API calls and use mock responses directly.');
+      return this.generateMockResponse(message, userContext);
     }
   }
 
